@@ -62,26 +62,32 @@ st.markdown(
 )
 
 PRESETS = {
-    "🎵 Default (Average Pop)":  DEFAULT_FEATURES.copy(),
-    "🔥 Viral Banger":           {
-        "danceability": 0.88, "energy": 0.92, "loudness": -3.5,
-        "speechiness": 0.07, "acousticness": 0.04, "instrumentalness": 0.00,
-        "valence": 0.78, "tempo": 128.0, "duration_ms": 195000,
+    # Defaults match the mean audio profile of the 5 viral songs in the training dataset
+    "🎵 Viral Mean (Dataset)": DEFAULT_FEATURES.copy(),
+    "🌙 Moody / R&B": {
+        "danceability": 0.76, "energy": 0.62, "loudness": -6.8,
+        "speechiness": 0.20, "acousticness": 0.25, "instrumentalness": 0.08,
+        "liveness": 0.10, "valence": 0.28, "tempo": 118.0, "duration_ms": 225000,
     },
-    "🎸 Indie Chill":            {
+    "🔥 Dark Banger": {
+        "danceability": 0.80, "energy": 0.78, "loudness": -5.5,
+        "speechiness": 0.22, "acousticness": 0.15, "instrumentalness": 0.05,
+        "liveness": 0.08, "valence": 0.22, "tempo": 125.0, "duration_ms": 220000,
+    },
+    "🎸 Indie Chill": {
         "danceability": 0.42, "energy": 0.35, "loudness": -12.0,
         "speechiness": 0.04, "acousticness": 0.75, "instrumentalness": 0.02,
-        "valence": 0.38, "tempo": 95.0, "duration_ms": 240000,
+        "liveness": 0.10, "valence": 0.38, "tempo": 95.0, "duration_ms": 240000,
     },
-    "🎹 Electronic / EDM":       {
+    "🎹 Electronic / EDM": {
         "danceability": 0.82, "energy": 0.95, "loudness": -4.0,
         "speechiness": 0.05, "acousticness": 0.01, "instrumentalness": 0.65,
-        "valence": 0.60, "tempo": 138.0, "duration_ms": 210000,
+        "liveness": 0.08, "valence": 0.60, "tempo": 138.0, "duration_ms": 210000,
     },
-    "🎤 Hip-Hop":                {
+    "🎤 Hip-Hop": {
         "danceability": 0.80, "energy": 0.70, "loudness": -5.5,
         "speechiness": 0.25, "acousticness": 0.10, "instrumentalness": 0.00,
-        "valence": 0.55, "tempo": 90.0, "duration_ms": 215000,
+        "liveness": 0.10, "valence": 0.55, "tempo": 90.0, "duration_ms": 215000,
     },
 }
 
@@ -96,6 +102,14 @@ _preset = PRESETS[_preset_key]
 st.markdown(
     '<div class="section-header">🎛️ Audio Features</div>',
     unsafe_allow_html=True,
+)
+
+st.info(
+    "🔥 **Tip:** Viral songs in this dataset tend to have "
+    "**low valence** (~0.29), **high speechiness** (~0.16), "
+    "**loudness** around −7 dB, and **high danceability** (~0.74). "
+    "The model also weighs artist popularity and engineered composite features — "
+    "use the *Viral Song Recipe* page for the full breakdown."
 )
 
 ranges = get_feature_ranges()
@@ -137,6 +151,12 @@ with col2:
         value=float(_preset["acousticness"]), step=_st,
         help="Confidence the track is acoustic (not electric/synthesised)",
     )
+    _mn, _mx, _df, _st = ranges["liveness"]
+    liveness = st.slider(
+        FEATURE_LABELS["liveness"], _mn, _mx,
+        value=float(_preset.get("liveness", 0.15)), step=_st,
+        help="Detects presence of a live audience (>0.8 = probably live recording)",
+    )
     _mn, _mx, _df, _st = ranges["instrumentalness"]
     instrumentalness = st.slider(
         FEATURE_LABELS["instrumentalness"], _mn, _mx,
@@ -171,6 +191,7 @@ feature_dict = {
     "speechiness":      speechiness,
     "acousticness":     acousticness,
     "instrumentalness": instrumentalness,
+    "liveness":         liveness,
     "valence":          valence,
     "tempo":            tempo,
     "duration_ms":      duration_ms,

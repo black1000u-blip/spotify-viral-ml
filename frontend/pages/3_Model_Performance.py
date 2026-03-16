@@ -164,11 +164,49 @@ else:
 # ── Cross-Validation ───────────────────────────────────────────────────────────
 if cv_data:
     st.markdown(
-        '<div class="section-header">🔄 Cross-Validation Score Distribution</div>',
+        '<div class="section-header">🔄 Cross-Validation Results</div>',
         unsafe_allow_html=True,
     )
+
+    # Build a summary table from the nested-dict structure
+    cv_rows = []
+    for model_name, raw in cv_data.items():
+        if isinstance(raw, dict):
+            scores_raw = raw.get("scores", [])
+            mean_val   = raw.get("mean_auc")
+            std_val    = raw.get("std_auc")
+        elif isinstance(raw, list):
+            scores_raw = raw
+            mean_val, std_val = None, None
+        else:
+            continue
+
+        valid = [float(s) for s in scores_raw if s is not None and s == s]
+        if not valid:
+            continue
+
+        mean_v = mean_val if (isinstance(mean_val, float) and mean_val == mean_val) else float(np.mean(valid))
+        std_v  = std_val  if (isinstance(std_val,  float) and std_val  == std_val)  else float(np.std(valid))
+        cv_rows.append({
+            "Model":     model_name.replace("_", " ").title(),
+            "Mean AUC":  round(mean_v, 6),
+            "Std AUC":   round(std_v, 6),
+            "CV Folds":  len(valid),
+        })
+
+    if cv_rows:
+        cv_summary_df = pd.DataFrame(cv_rows).sort_values("Mean AUC", ascending=False).reset_index(drop=True)
+        st.dataframe(
+            cv_summary_df.style.background_gradient(subset=["Mean AUC"], cmap="RdYlGn"),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+
+    # Boxplot (now handles nested dicts internally)
     fig_cv = cv_boxplot(cv_data)
     st.plotly_chart(fig_cv, use_container_width=True)
+
 elif not cv_data:
     st.info("ℹ️  `models/cv_results.json` not found.")
 

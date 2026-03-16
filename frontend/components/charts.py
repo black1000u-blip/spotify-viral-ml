@@ -90,10 +90,38 @@ def multi_metric_bar(df: pd.DataFrame,
 
 
 def cv_boxplot(cv_data: dict) -> go.Figure:
-    """Box plot of cross-validation scores per model."""
+    """Box plot of cross-validation scores per model.
+
+    Handles two JSON layouts:
+      • {model: [s1, s2, ...]}                        – plain list
+      • {model: {"scores": [...], "mean_auc": x, ...}} – nested dict from pipeline
+    """
     fig = go.Figure()
-    for i, (model, scores) in enumerate(cv_data.items()):
+    added = 0
+
+    for i, (model, raw) in enumerate(cv_data.items()):
         color = COLOR_SEQ[i % len(COLOR_SEQ)]
+
+        # ── Normalise to a plain list of floats ───────────────────────────────
+        if isinstance(raw, dict):
+            scores_raw = raw.get("scores", [])
+            mean_lbl   = raw.get("mean_auc")
+        elif isinstance(raw, list):
+            scores_raw = raw
+            mean_lbl   = None
+        else:
+            continue
+
+        # Filter out NaN values; skip models whose entire score list is NaN
+        scores = [float(s) for s in scores_raw if s is not None and s == s]  # NaN != NaN
+        if not scores:
+            continue
+
+        hover_name = (
+            f"{model}<br>Mean: {mean_lbl:.4f}" if isinstance(mean_lbl, float) and mean_lbl == mean_lbl
+            else model
+        )
+
         fig.add_trace(go.Box(
             y=scores,
             name=model,
@@ -101,11 +129,22 @@ def cv_boxplot(cv_data: dict) -> go.Figure:
             line_color=color,
             fillcolor=_rgb(color, 0.15),
             boxmean=True,
-            boxpoints='outliers',
+            boxpoints="outliers",
+            hovertemplate=f"<b>{hover_name}</b><br>Score: %{{y:.4f}}<extra></extra>",
         ))
+        added += 1
+
+    if added == 0:
+        # Return empty figure with a note
+        fig.add_annotation(
+            text="No valid CV scores available",
+            xref="paper", yref="paper", x=0.5, y=0.5,
+            showarrow=False, font=dict(color="#8888aa", size=14),
+        )
+
     fig.update_layout(
-        title="Cross-Validation Score Distribution",
-        yaxis_title="Score",
+        title="Cross-Validation AUC Score Distribution",
+        yaxis_title="AUC Score",
         showlegend=False,
         **_BASE_LAYOUT,
     )
