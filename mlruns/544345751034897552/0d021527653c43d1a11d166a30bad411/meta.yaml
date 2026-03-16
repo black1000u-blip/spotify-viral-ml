@@ -1,0 +1,15 @@
+artifact_uri: file:///C:/Users/KIIT0001/Desktop/AD%20Lab%20Projects/spotify-virality-prediction/mlruns/544345751034897552/0d021527653c43d1a11d166a30bad411/artifacts
+end_time: 1773659354156
+entry_point_name: ''
+experiment_id: '544345751034897552'
+lifecycle_stage: active
+run_id: 0d021527653c43d1a11d166a30bad411
+run_name: reg_ridge
+run_uuid: 0d021527653c43d1a11d166a30bad411
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1773659354088
+status: 3
+tags: []
+user_id: KIIT0001

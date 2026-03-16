@@ -180,7 +180,9 @@ class SimpleKAN:
 #  Optuna tuning helpers
 # ====================================================================== #
 def optuna_tune_lgbm(X_train, y_train, n_trials=30, random_state=42):
-    """Bayesian HPO for LightGBM via Optuna"""
+    """Bayesian HPO for LightGBM via Optuna (manual CV to avoid sklearn tags issue)"""
+    from sklearn.metrics import roc_auc_score
+
     def objective(trial):
         params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
@@ -193,10 +195,18 @@ def optuna_tune_lgbm(X_train, y_train, n_trials=30, random_state=42):
             'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 10.0, log=True),
             'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 10.0, log=True),
         }
-        model = lgb.LGBMClassifier(**params, random_state=random_state, verbose=-1, n_jobs=1)
         cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
-        scores = cross_val_score(model, X_train, y_train, cv=cv, scoring='roc_auc', n_jobs=1)
-        score = scores.mean()
+        scores = []
+        for train_idx, val_idx in cv.split(X_train, y_train):
+            X_tr, X_val = X_train[train_idx], X_train[val_idx]
+            y_tr, y_val = y_train.iloc[train_idx] if hasattr(y_train, 'iloc') else y_train[train_idx], \
+                          y_train.iloc[val_idx] if hasattr(y_train, 'iloc') else y_train[val_idx]
+            model = lgb.LGBMClassifier(**params, random_state=random_state, verbose=-1, n_jobs=1)
+            model.fit(X_tr, y_tr)
+            preds = model.predict_proba(X_val)[:, 1]
+            scores.append(roc_auc_score(y_val, preds))
+
+        score = np.mean(scores)
         if np.isnan(score):
             return 0.5
         return score
@@ -207,7 +217,9 @@ def optuna_tune_lgbm(X_train, y_train, n_trials=30, random_state=42):
 
 
 def optuna_tune_xgb(X_train, y_train, n_trials=30, random_state=42):
-    """Bayesian HPO for XGBoost via Optuna"""
+    """Bayesian HPO for XGBoost via Optuna (manual CV to avoid sklearn tags issue)"""
+    from sklearn.metrics import roc_auc_score
+
     def objective(trial):
         params = {
             'n_estimators': trial.suggest_int('n_estimators', 100, 500),
@@ -219,11 +231,19 @@ def optuna_tune_xgb(X_train, y_train, n_trials=30, random_state=42):
             'reg_alpha': trial.suggest_float('reg_alpha', 1e-8, 10.0, log=True),
             'reg_lambda': trial.suggest_float('reg_lambda', 1e-8, 10.0, log=True),
         }
-        model = xgb.XGBClassifier(**params, random_state=random_state,
-                                   eval_metric='logloss', n_jobs=1)
         cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
-        scores = cross_val_score(model, X_train, y_train, cv=cv, scoring='roc_auc', n_jobs=1)
-        score = scores.mean()
+        scores = []
+        for train_idx, val_idx in cv.split(X_train, y_train):
+            X_tr, X_val = X_train[train_idx], X_train[val_idx]
+            y_tr, y_val = y_train.iloc[train_idx] if hasattr(y_train, 'iloc') else y_train[train_idx], \
+                          y_train.iloc[val_idx] if hasattr(y_train, 'iloc') else y_train[val_idx]
+            model = xgb.XGBClassifier(**params, random_state=random_state,
+                                       eval_metric='logloss', n_jobs=1)
+            model.fit(X_tr, y_tr)
+            preds = model.predict_proba(X_val)[:, 1]
+            scores.append(roc_auc_score(y_val, preds))
+
+        score = np.mean(scores)
         if np.isnan(score):
             return 0.5  # fallback for failed folds
         return score
@@ -311,10 +331,17 @@ class ModelTrainer:
 
         if balance_data:
             print("\nApplying SMOTE to balance classes...")
-            smote = SMOTE(random_state=self.random_state)
-            X_train_scaled, y_train = smote.fit_resample(X_train_scaled, y_train)
-            print(f"After SMOTE: {len(X_train_scaled)} samples")
-            print(f"Class distribution: {pd.Series(y_train).value_counts().to_dict()}")
+            # Adjust k_neighbors if minority class is too small
+            minority_size = y_train.value_counts().min()
+            k_neighbors = min(5, minority_size - 1) if minority_size > 1 else 1
+            
+            if minority_size > 1:
+                smote = SMOTE(random_state=self.random_state, k_neighbors=k_neighbors)
+                X_train_scaled, y_train = smote.fit_resample(X_train_scaled, y_train)
+                print(f"After SMOTE: {len(X_train_scaled)} samples")
+                print(f"Class distribution: {pd.Series(y_train).value_counts().to_dict()}")
+            else:
+                print("Warning: Skipping SMOTE as minority class has < 2 samples.")
 
         return X_train_scaled, X_test_scaled, y_train, y_test, feature_cols
 
