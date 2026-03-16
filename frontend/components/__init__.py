@@ -1,0 +1,3 @@
+# frontend/components/__init__.py
+# Makes `components` a proper Python package so pages can do:
+#   from components.model_loader import ...
