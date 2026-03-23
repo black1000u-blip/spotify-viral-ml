@@ -274,15 +274,15 @@ class FeatureEngineer:
             'is_weekend_release', 'song_age_years'
         ]
         artist_features = [
-            'artist_avg_popularity', 'artist_song_count',
-            'artist_max_popularity', 'artist_std_popularity',
+            'artist_song_count',
+            'artist_std_popularity',
             'artist_has_viral_hit'
         ]
         target_encoded = [col for col in df.columns if col.endswith('_target_enc')]
         poly_features = [col for col in df.columns if col.startswith('poly_')]
         categorical_encoded = [col for col in df.columns if any(
             prefix in col for prefix in ['mood_', 'duration_category_', 
-                                          'tempo_category_', 'popularity_bucket_',
+                                          'tempo_category_',
                                           'release_season_']
         )]
         
@@ -347,10 +347,24 @@ def main():
     df_transformed.to_csv(args.output, index=False)
     print(f"\nData saved to {args.output}")
     
+    # Save feature list to text file
     feature_list_path = args.output.replace('.csv', '_features.txt')
     with open(feature_list_path, 'w') as f:
         f.write('\n'.join(feature_cols))
     print(f"Feature list saved to {feature_list_path}")
+
+    # Save to MongoDB
+    from pymongo import MongoClient
+    mongo_uri = "mongodb+srv://Dradmin:Mongo%40db%23123@cluster0.qa3itof.mongodb.net/"
+    try:
+        client = MongoClient(mongo_uri)
+        db = client['spotify_data']
+        collection = db['processed_features']
+        collection.delete_many({})
+        collection.insert_many(df_transformed.to_dict('records'))
+        print(f"✅ Engineered features saved to MongoDB (processed_features)")
+    except Exception as e:
+        print(f"❌ MongoDB Save Error: {e}")
     
     print(f"\nShape: {df_transformed.shape}")
     print(f"Features: {len(feature_cols)}")

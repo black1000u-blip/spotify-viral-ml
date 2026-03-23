@@ -224,6 +224,22 @@ if predict_btn:
             pred       = result["prediction"]
             confidence = result["confidence_label"]
 
+            # ── Log Prediction to MongoDB ──
+            from components.model_loader import get_mongo_db
+            import datetime
+            db = get_mongo_db()
+            if db is not None:
+                try:
+                    db['prediction_history'].insert_one({
+                        'timestamp': datetime.datetime.now(),
+                        'features': feature_dict,
+                        'probability': float(prob),
+                        'prediction': int(pred),
+                        'confidence': confidence
+                    })
+                except Exception:
+                    pass
+
             st.markdown(
                 '<div class="section-header">🎯 Prediction Result</div>',
                 unsafe_allow_html=True,

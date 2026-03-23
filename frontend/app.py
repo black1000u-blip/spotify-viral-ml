@@ -80,6 +80,24 @@ with st.sidebar:
     st.page_link("pages/3_Model_Performance.py",   label="🏆  Model Performance",  )
     st.page_link("pages/4_Viral_Song_Recipe.py",   label="🧪  Viral Song Recipe",  )
 
+    st.markdown("<hr style='border:none; border-top:1px solid rgba(255,255,255,0.07);'>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='font-size:0.68rem; color:#8888aa; text-transform:uppercase; "
+        "letter-spacing:0.13em; margin-bottom:10px;'>Pipeline Runner</div>",
+        unsafe_allow_html=True,
+    )
+    
+    num_samples = st.number_input("Number of samples:", min_value=100, max_value=120000, value=5000, step=100)
+    
+    if st.button("🚀 Run Pipeline"):
+        import subprocess
+        with st.spinner(f"Running pipeline on {num_samples} samples... This may take a while. Please check your terminal for progress."):
+            subprocess.run(f"python run_pipeline.py --num-songs {num_samples}", shell=True)
+            st.cache_data.clear()
+            st.cache_resource.clear()
+            st.success("Pipeline finished! Refreshing data...")
+            st.rerun()
+
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown(
         "<div style='font-size:0.68rem; color:#555570; text-align:center;'>"
